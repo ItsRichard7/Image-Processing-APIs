@@ -1,0 +1,2 @@
+# Image-Processing-APIs
+This repository corresponds at the solution to first programmed project of the Algorithms and Data Structures II curse. The application purpose it applies a series of filters on images working on a TCP socket protocol communication. In simple words the client sends to server the selected imaged, the server takes the image and apply it the filter and then send the result back to the client. However, the wide band between server and client its limited so its necessary to apply a pagination method to images and send it in parts.
