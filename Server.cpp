@@ -25,8 +25,14 @@ private:
     // addressLen --> the len in bytes of struct address
     int opt, addressLen;
 
+    // image and filterImage --> Both save the client image. The original and the filter one
     Mat image;
     Mat filterImage;
+
+    // imgSize --> size of bits of the image
+    // imgWidth --> width in pixels of the image
+    // imgHeight --> height in pixels of the image
+    // data --> number control variable
     int imgSize, imgWidth, imgHeight, data;
 
 public:
@@ -85,17 +91,18 @@ public:
         return 0;
     }
 
-    // Function that get a text line, wrote by the user in the console and then, send it through the socket
+    // Function that send image through the socket
     int sendImage(){
         int bytes = 0;
         bytes = send(newSocket, filterImage.data, imgSize, 0); // send the image through the socket to client
-        if (bytes < 0){
+        if (bytes < 0){ // Error code
             cout << "Error writing to socket" << endl;
             closeSocket();
         }
         return 0;
     }
 
+    // Function that read int values from the socket and save them
     int hearSize(){
         int value;
         int n = recv(newSocket, &value, sizeof(value), 0);
@@ -108,12 +115,12 @@ public:
         data++;
     }
 
-    // Function that hear the data from client and save it
+    // Function that hear the image from client and save it
     int hearImage(){
         int bytes;
-        image = Mat::zeros(imgHeight, imgWidth, CV_8UC3);
-        imgSize = image.total()*image.elemSize();
-        uchar sockData[imgSize];
+        image = Mat::zeros(imgHeight, imgWidth, CV_8UC3); // initialize the mat instance with the size of image
+        imgSize = image.total()*image.elemSize(); // get the bit size of image
+        uchar sockData[imgSize]; // Buffer where the pixels of the image are saved
 
         for (int i = 0; i < imgSize; i+=bytes) {
             if ((bytes = recv(newSocket, sockData + i, imgSize - i, 0)) == -1){ // read the data and save it in buffer
@@ -123,16 +130,20 @@ public:
         }
 
         int ptr = 0;
-        for (int i = 0; i < image.rows; ++i) {
+        for (int i = 0; i < image.rows; ++i) { // Get the color information in the buffer and apply it to Mat instance
             for (int j = 0; j < image.cols; ++j) {
                 image.at<cv::Vec3b>(i,j) = cv::Vec3b(sockData[ptr + 0], sockData[ptr + 1], sockData[ptr + 2]);
                 ptr += 3;
             }
         }
-        filterImage = image;
+
+        filterImage = image; // save the image for later apply it the filter
+
+        // Show the image in screen
         namedWindow("Server", WINDOW_AUTOSIZE);
         imshow("Server", image);
         waitKey(0);
+
         return 0;
     }
 
