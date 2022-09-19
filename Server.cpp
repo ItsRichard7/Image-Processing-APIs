@@ -4,6 +4,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #include <opencv2/opencv.hpp>
+#include "Processing_APIS.h"
 
 #define PORT 8080
 
