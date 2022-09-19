@@ -1,11 +1,12 @@
 #include <iostream>
 #include <arpa/inet.h>
-#include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <opencv2/opencv.hpp>
 #define PORT 8080
 
 using namespace std;
+using namespace cv;
 
 class Client{
 
@@ -18,9 +19,21 @@ private:
     // address --> struct with int attributes for configure later the parameters of socket
     struct sockaddr_in serverAdress;
 
+    // image --> place where the image is saved
+    Mat image;
+    Mat filterImage;
 public:
-    Client(){
+    int imgSize, imgWidth, imgHeight;
+
+    Client(string imgPath){
         newSocket = 0;
+        image = imread(imgPath, 1);
+        if (!image.data){
+            cout << "No image data" << endl;
+        }
+        imgSize = image.total()*image.elemSize();
+        imgWidth = image.cols;
+        imgHeight = image.rows;
     }
 
     // Function that try to connect a new socket with a server in a specific port and ip
@@ -51,25 +64,51 @@ public:
         return 0;
     }
 
+    int sendSize(int* value){
+        int n = send(newSocket,value, sizeof(int), 0);
+        if (n < 0){
+            cout << "Error writing to socket" << endl;
+            closeSocket();
+        }
+        return 0;
+    }
+
     // Function that get a text line, wrote by the user in the console and then, send it through the socket
-    int sendMessage(){
-        cout << ">>> Write your message <<<" << endl;
-        string message;
-        getline(cin, message); // get the text line wrote in console and save it in variable message
-        char* data = (char*) message.c_str(); // create a charPtr with the text data
-        send(newSocket, data, strlen(data), 0); // send the text through the socket to client
+    int sendImage(){
+        int bytes = 0;
+        bytes = send(newSocket, image.data, imgSize, 0); // send the image through the socket to client
+        if (bytes < 0){
+            cout << "Error writing to socket" << endl;
+            closeSocket();
+        }
         return 0;
     }
 
     // Function that hear the data from client and save it
-    int hearMessages(){
-        while (connection){ // if the connection between client and server still active
-            char *buffer = new char[1024]; // create a buffer where the text receive from sockets is safe
-            read(newSocket, buffer, 1024); // read the data and save it in buffer
-            cout << "Server: " << buffer << endl; // print the message in console
-            delete[] buffer;
-            sendMessage(); // Start answer message protocol
+    int hearImage(){
+        int bytes;
+        filterImage = Mat::zeros(imgHeight, imgWidth, CV_8UC3);
+        imgSize = filterImage.total() * filterImage.elemSize();
+        uchar sockData[imgSize];
+
+        for (int i = 0; i < imgSize; i+=bytes) {
+            if ((bytes = recv(newSocket, sockData + i, imgSize - i, 0)) == -1){ // read the data and save it in buffer
+                cout << "Receive failed" << endl;
+                return -1;
+            }
         }
+
+        int ptr = 0;
+        for (int i = 0; i < filterImage.rows; ++i) {
+            for (int j = 0; j < filterImage.cols; ++j) {
+                filterImage.at<cv::Vec3b>(i,j) = cv::Vec3b(sockData[ptr + 0], sockData[ptr + 1], sockData[ptr + 2]);
+                ptr += 3;
+            }
+        }
+
+        namedWindow("Client", WINDOW_AUTOSIZE);
+        imshow("Client", filterImage);
+        waitKey(0);
         return 0;
     }
 
@@ -83,10 +122,16 @@ public:
 
 // The main function create a new instance of server and initialize it
 int main(){
-    Client client;
+    //Client client("bob.png");
+    Client client("banda.jpg");
     client.conectServer();
-    client.sendMessage();
-    client.hearMessages();
+
+    client.sendSize(&client.imgWidth);
+    client.sendSize(&client.imgHeight);
+    client.sendImage();
+
+    client.hearImage();
+
     client.closeSocket();
     return 0;
 }

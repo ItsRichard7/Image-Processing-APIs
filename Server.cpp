@@ -1,12 +1,14 @@
 #include <iostream>
 #include <netinet/in.h>
 #include <stdlib.h>
-#include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <opencv2/opencv.hpp>
+
 #define PORT 8080
 
 using namespace std;
+using namespace cv;
 
 class Server{
 
@@ -23,10 +25,15 @@ private:
     // addressLen --> the len in bytes of struct address
     int opt, addressLen;
 
+    Mat image;
+    Mat filterImage;
+    int imgSize, imgWidth, imgHeight, data;
+
 public:
     Server(){
         opt = 1;
         addressLen = sizeof(address); // get bytes len of address and assign
+        data = 0;
     }
 
     // Function that try to create a new server socket and configurate it
@@ -79,24 +86,53 @@ public:
     }
 
     // Function that get a text line, wrote by the user in the console and then, send it through the socket
-    int sendMessage(){
-        cout << ">>> Write your message <<<" << endl;
-        string message;
-        getline(cin, message); // get the text line wrote in console and save it in variable message
-        char* hello = (char*) message.c_str(); // create a charPtr with the text data
-        send(newSocket, hello, strlen(hello), 0); // send the text through the socket to client
+    int sendImage(){
+        int bytes = 0;
+        bytes = send(newSocket, filterImage.data, imgSize, 0); // send the image through the socket to client
+        if (bytes < 0){
+            cout << "Error writing to socket" << endl;
+            closeSocket();
+        }
         return 0;
     }
 
-    // Function that hear the data from client and save it
-    int hearMessage(){
-        while (connection){ // if the connection between client and server still active
-            char *buffer = new char[1024]; // create a buffer where the text receive from sockets is safe
-            read(newSocket, buffer, 1024); // read the data and save it in buffer
-            cout << "Client: " << buffer << endl; // print the message in console
-            delete[] buffer;
-            sendMessage(); // Start answer message protocol
+    int hearSize(){
+        int value;
+        int n = recv(newSocket, &value, sizeof(value), 0);
+        if (n < 0){
+            cout << "Receive failed" << endl;
+            return -1;
         }
+        if (data == 0) imgWidth = value;
+        if (data == 1) imgHeight = value;
+        data++;
+    }
+
+    // Function that hear the data from client and save it
+    int hearImage(){
+        int bytes;
+        image = Mat::zeros(imgHeight, imgWidth, CV_8UC3);
+        imgSize = image.total()*image.elemSize();
+        uchar sockData[imgSize];
+
+        for (int i = 0; i < imgSize; i+=bytes) {
+            if ((bytes = recv(newSocket, sockData + i, imgSize - i, 0)) == -1){ // read the data and save it in buffer
+                cout << "Receive failed" << endl;
+                return -1;
+            }
+        }
+
+        int ptr = 0;
+        for (int i = 0; i < image.rows; ++i) {
+            for (int j = 0; j < image.cols; ++j) {
+                image.at<cv::Vec3b>(i,j) = cv::Vec3b(sockData[ptr + 0], sockData[ptr + 1], sockData[ptr + 2]);
+                ptr += 3;
+            }
+        }
+        filterImage = image;
+        namedWindow("Server", WINDOW_AUTOSIZE);
+        imshow("Server", image);
+        waitKey(0);
         return 0;
     }
 
@@ -121,7 +157,13 @@ public:
 int main(){
     Server server;
     server.createServer();
-    server.hearMessage();
+
+    server.hearSize();
+    server.hearSize();
+    server.hearImage();
+
+    server.sendImage();
+
     server.closeSocket();
     server.closeServer();
     return 0;
