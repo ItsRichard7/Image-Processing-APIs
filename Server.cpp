@@ -8,6 +8,19 @@
 
 #define PORT 8080
 
+#define GAMMA 1
+#define GAUSSIAN 2
+#define BRIGHTNESS 3
+#define GRAYSCALE 4
+
+#define RECEIVE_WIDTH 5
+#define RECEIVE_HEIGHT 6
+#define RECEIVE_FILTER 7
+#define RECEIVE_BRIGHT 8
+#define RECEIVE_IMAGE 9
+
+#define CLOSE_SOCKET 10
+
 using namespace std;
 using namespace cv;
 
@@ -34,13 +47,12 @@ private:
     // imgWidth --> width in pixels of the image
     // imgHeight --> height in pixels of the image
     // data --> number control variable
-    int imgSize, imgWidth, imgHeight, data;
+    int imgFilter, imgSize, imgWidth, imgHeight, imgBright;
 
 public:
     Server(){
         opt = 1;
         addressLen = sizeof(address); // get bytes len of address and assign
-        data = 0;
     }
 
     // Function that try to create a new server socket and configurate it
@@ -92,28 +104,50 @@ public:
         return 0;
     }
 
-    // Function that send image through the socket
-    int sendImage(){
-        int bytes = 0;
-        bytes = send(newSocket, filterImage.data, imgSize, 0); // send the image through the socket to client
-        if (bytes < 0){ // Error code
-            cout << "Error writing to socket" << endl;
-            closeSocket();
-        }
-        return 0;
-    }
-
-    // Function that read int values from the socket and save them
-    int hearSize(){
+    int hearNum(){
         int value;
         int n = recv(newSocket, &value, sizeof(value), 0);
         if (n < 0){
             cout << "Receive failed" << endl;
             return -1;
         }
-        if (data == 0) imgWidth = value;
-        if (data == 1) imgHeight = value;
-        data++;
+        return value;
+    }
+
+    int hearMessages(){
+        while (connection){
+            int value = hearNum();
+            if (value == RECEIVE_FILTER) setFilter();
+            if (value == RECEIVE_BRIGHT) setBright();
+            if (value == RECEIVE_WIDTH) setWidth();
+            if (value == RECEIVE_HEIGHT) setHeight();
+            if (value == RECEIVE_IMAGE){
+                hearImage();
+                applyFilter();
+            }
+            if (value == CLOSE_SOCKET) connection = false;
+        }
+        return 0;
+    }
+
+    int setFilter(){
+        int value = hearNum();
+        imgFilter = value;
+    }
+
+    int setBright(){
+        int value = hearNum();
+        imgBright = value;
+    }
+
+    int setWidth(){
+        int value = hearNum();
+        imgWidth = value;
+    }
+
+    int setHeight(){
+        int value = hearNum();
+        imgHeight = value;
     }
 
     // Function that hear the image from client and save it
@@ -138,13 +172,35 @@ public:
             }
         }
 
-        filterImage = image; // save the image for later apply it the filter
-
         // Show the image in screen
-        namedWindow("Server", WINDOW_AUTOSIZE);
-        imshow("Server", image);
+        namedWindow("Image received by Server (Original Image)", WINDOW_AUTOSIZE);
+        imshow("Image received by Server (Original Image)", image);
         waitKey(0);
 
+        return 0;
+    }
+
+    int applyFilter(){
+
+        if (imgFilter == GAMMA) filterImage = Processing_APIS::gamma_correction(image);
+
+        if (imgFilter == GAUSSIAN) filterImage = Processing_APIS::gaussian_blur(image);
+
+        if (imgFilter == GRAYSCALE) filterImage = Processing_APIS::gray_scale(image);
+
+        if (imgFilter == BRIGHTNESS) filterImage = Processing_APIS::bright_control(image, imgBright);
+
+        sendImage();
+    }
+
+    // Function that send image through the socket
+    int sendImage(){
+        int bytes = 0;
+        bytes = send(newSocket, filterImage.data, imgSize, 0); // send the image through the socket to client
+        if (bytes < 0){ // Error code
+            cout << "Error writing to socket" << endl;
+            closeSocket();
+        }
         return 0;
     }
 
@@ -167,16 +223,16 @@ public:
 
 // The main function create a new instance of server and initialize it
 int main(){
+
     Server server;
+
     server.createServer();
 
-    server.hearSize();
-    server.hearSize();
-    server.hearImage();
-
-    server.sendImage();
+    server.hearMessages();
 
     server.closeSocket();
+
     server.closeServer();
+
     return 0;
 }

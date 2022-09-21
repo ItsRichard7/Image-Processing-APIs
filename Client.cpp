@@ -3,7 +3,22 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #include <opencv2/opencv.hpp>
+
 #define PORT 8080
+
+#define GAMMA 1
+#define GAUSSIAN 2
+#define BRIGHTNESS 3
+#define GRAYSCALE 4
+
+#define SEND_WIDTH 5
+#define SEND_HEIGHT 6
+#define SEND_FILTER 7
+#define SEND_BRIGHT 8
+#define SEND_IMAGE 9
+
+#define CLOSE_SOCKET 10
+
 
 using namespace std;
 using namespace cv;
@@ -14,7 +29,7 @@ private:
     // connection --> boolean that indicates if the client and server are actually texting
     // newSocket --> save the configuration of the socket
     // clientSocket --> communication channel with server
-    int connection, newSocket, clientSocket;
+    int newSocket, clientSocket;
 
     // address --> struct with int attributes for configure later the parameters of socket
     struct sockaddr_in serverAdress;
@@ -28,6 +43,7 @@ public:
     // imgWidth --> width in pixels of the image
     // imgHeight --> height in pixels of the image
     int imgSize, imgWidth, imgHeight;
+    int filter, brightness;
 
     Client(string imgPath){
         newSocket = 0;
@@ -63,14 +79,62 @@ public:
             cout << "Connection Failed" << endl;
             return -1;
         }
-        connection = true; // set in active the connection between server and client
         cout << ">>> Connection with server successfully correct <<<" << endl;
         return 0;
     }
 
+    int chooseFilter(){
+        string message;
+        int answer;
+
+        cout << ">>> Type the number of the filter do tou want to apply to your image <<<" << endl;
+        cout << "1) Gamma Filter  2) Gaussian Filter  3) Brightness Control  4) Gray Scale" << endl;
+
+        getline(cin, message);
+        answer = stoi(message);
+
+        filter = answer;
+
+        if (filter == BRIGHTNESS){
+            cout << ">>> In a scale of 0 to 300 (150 its the same bright) how much brightness do you want to apply to your image <<<" << endl;
+            string bright_message;
+            int bright_int;
+            getline(cin, bright_message);
+            bright_int = stoi(bright_message);
+            brightness = bright_int;
+        }
+
+        filterProtocol(filter);
+        return 0;
+    }
+
+    int filterProtocol(int filter_num){
+        if (filter_num == BRIGHTNESS){
+            sendNumber(SEND_BRIGHT);
+            sendNumber(brightness);
+        }
+
+        sendNumber(SEND_FILTER);
+        sendNumber(filter);
+
+        sendNumber(SEND_WIDTH);
+        sendNumber(imgWidth);
+
+        sendNumber(SEND_HEIGHT);
+        sendNumber(imgHeight);
+
+        sendNumber(SEND_IMAGE);
+        sendImage();
+
+        return 0;
+    }
+
+
     // Send int values
-    int sendSize(int* value){
-        int n = send(newSocket,value, sizeof(int), 0);
+    int sendNumber(int value){
+        int num = value;
+        int* numPtr = &num;
+        int n = send(newSocket,numPtr, sizeof(int), 0);
         if (n < 0){
             cout << "Error writing to socket" << endl;
             closeSocket();
@@ -112,8 +176,8 @@ public:
         }
 
         // Show the image in screen
-        namedWindow("Client", WINDOW_AUTOSIZE);
-        imshow("Client", filterImage);
+        namedWindow("Image received by Client (Image with Filter)", WINDOW_AUTOSIZE);
+        imshow("Image received by Client (Image with Filter)", filterImage);
         waitKey(0);
 
         return 0;
@@ -121,6 +185,14 @@ public:
 
     // Function that close the socket cnnection with the server
     int closeSocket(){
+        int num = CLOSE_SOCKET;
+        int* numPtr = &num;
+        int n = send(newSocket,numPtr, sizeof(int), 0);
+        if (n < 0){
+            cout << "Error writing to socket" << endl;
+            closeSocket();
+        }
+
         close(clientSocket);
         cout << "The client socket was successfully closed" << endl;
         return 0;
@@ -129,16 +201,17 @@ public:
 
 // The main function create a new instance of server and initialize it
 int main(){
-    Client client("banda.jpg");
+
+    Client client("imagen3.jpg");
+
     client.conectServer();
 
-    client.sendSize(&client.imgWidth);
-    client.sendSize(&client.imgHeight);
-    client.sendImage();
+    client.chooseFilter();
 
     client.hearImage();
 
     client.closeSocket();
+
     return 0;
 }
 
