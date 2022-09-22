@@ -157,7 +157,7 @@ public:
     int hearImage(){
         int bytes;
         filterImage = Mat::zeros(imgHeight, imgWidth, CV_8UC3); // initialize the mat instance with the size of image
-        imgSize = filterImage.total() * filterImage.elemSize(); // get the bit size of image
+
         uchar sockData[imgSize]; // Buffer where the pixels of the image are saved
 
         for (int i = 0; i < imgSize; i+=bytes) {
@@ -166,12 +166,17 @@ public:
                 return -1;
             }
         }
-
         int ptr = 0;
-        for (int i = 0; i < filterImage.rows; ++i) { // Get the color information in the buffer and apply it to Mat instance
-            for (int j = 0; j < filterImage.cols; ++j) {
-                filterImage.at<cv::Vec3b>(i,j) = cv::Vec3b(sockData[ptr + 0], sockData[ptr + 1], sockData[ptr + 2]);
-                ptr += 3;
+        cout << imgHeight << endl << imgWidth << endl;
+        for (int i = 0; i < imgHeight; ++i) { // Get the color information in the buffer and apply it to Mat instance
+            for (int j = 0; j < imgWidth; ++j) {
+                if (filter == GRAYSCALE) {
+                    filterImage.at<cv::Vec3b>(i,j) = cv::Vec3b(sockData[ptr],sockData[ptr],sockData[ptr]);
+                    ptr += 1;
+                } else{
+                    filterImage.at<cv::Vec3b>(i, j) = cv::Vec3b(sockData[ptr + 0], sockData[ptr + 1],sockData[ptr + 2]);
+                    ptr += 3;
+                }
             }
         }
 
@@ -185,14 +190,7 @@ public:
 
     // Function that close the socket cnnection with the server
     int closeSocket(){
-        int num = CLOSE_SOCKET;
-        int* numPtr = &num;
-        int n = send(newSocket,numPtr, sizeof(int), 0);
-        if (n < 0){
-            cout << "Error writing to socket" << endl;
-            closeSocket();
-        }
-
+        sendNumber(CLOSE_SOCKET);
         close(clientSocket);
         cout << "The client socket was successfully closed" << endl;
         return 0;

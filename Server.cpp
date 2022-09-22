@@ -165,6 +165,7 @@ public:
         }
 
         int ptr = 0;
+
         for (int i = 0; i < image.rows; ++i) { // Get the color information in the buffer and apply it to Mat instance
             for (int j = 0; j < image.cols; ++j) {
                 image.at<cv::Vec3b>(i,j) = cv::Vec3b(sockData[ptr + 0], sockData[ptr + 1], sockData[ptr + 2]);
