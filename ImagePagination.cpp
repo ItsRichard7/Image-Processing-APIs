@@ -6,23 +6,26 @@ using namespace cv;
 
 class ImageHandler{
 public:
-    int widthBlock, heightBlock;
-
     // imgSize --> size of bits of the image
-    // imgWidth --> width in pixels of the image
-    // imgHeight --> height in pixels of the image
-    int imgSize, imgWidth, imgHeight;
+    // imgWidth and imgHeight --> width and height in pixels of the image
+    int imgWidth, imgHeight;
+
+    // String with the local path of the image
+    string imagepath;
+
+    // image and filterImage --> place where the image is saved
+    Mat image, filterImage;
+
+    int widthBlock, heightBlock, lastBlockW, lastBlockH;
 
     int horizontalBlocks,verticalBlocks;
 
-    int lastBlockW, lastBlockH;
+    vector<Mat> blocks,filterBlocks;
 
-    string imagepath;
-    Mat image;
-    Mat filterImage;
-
-    vector<Mat> blocks;
-    vector<Mat> filterBlocks;
+    ImageHandler(){
+        widthBlock = 100;
+        heightBlock = 100;
+    }
 
     ImageHandler(string path){
         widthBlock = 100;
@@ -33,21 +36,22 @@ public:
             cout << "No image data" << endl;
             exit(0);
         }
-        imgSize = image.total()*image.elemSize();
         imgWidth = image.cols;
         imgHeight = image.rows;
+        setParameters();
+    }
+
+    int setParameters(){
         horizontalBlocks = (int) (imgWidth / widthBlock);
-        cout << horizontalBlocks << endl;
         verticalBlocks = (int) (imgHeight / heightBlock);
-        cout << verticalBlocks << endl;
         lastBlockW = imgWidth % widthBlock;
-        cout << lastBlockW << endl;
         lastBlockH = imgHeight % heightBlock;
-        cout << lastBlockH << endl;
 
         if (lastBlockW != 0) horizontalBlocks++;
         if (lastBlockH != 0) verticalBlocks++;
+
         filterImage = Mat::zeros(imgHeight, imgWidth, CV_8UC3);
+        return 0;
     }
 
     int showImage(string winName, Mat image){
@@ -78,6 +82,7 @@ public:
             }
             ypos += heightBlock;
         }
+        cout << "llegue aqui 2" << endl;
         return 0;
     }
 
@@ -86,7 +91,7 @@ public:
         for (int i = 0; i < filterBlocks.size(); ++i) {
             tempy = (int) i / horizontalBlocks;
             ypos = heightBlock * tempy;
-            for (int j = 0; j < blocks[i].rows; ++j) {
+            for (int j = 0; j < filterBlocks[i].rows; ++j) {
                 tempx = i % horizontalBlocks;
                 xpos = widthBlock * tempx;
                 for (int k = 0; k < filterBlocks[i].cols; ++k) {
@@ -97,15 +102,7 @@ public:
                 ypos++;
             }
         }
+        cout << "llegue aqui 1" << endl;
+        return 0;
     }
 };
-
-int main(){
-    ImageHandler imageHandler("imagen1.jpg");
-    imageHandler.showImage("Image loaded by user", imageHandler.image);
-    imageHandler.separateImage();
-    imageHandler.filterBlocks = imageHandler.blocks;
-    imageHandler.remakeImage();
-    imageHandler.showImage("Remake image from blocks", imageHandler.filterImage);
-    return 0;
-}

@@ -3,6 +3,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #include <opencv2/opencv.hpp>
+#include "ImagePagination.cpp"
 
 #define PORT 8080
 
@@ -13,11 +14,16 @@
 
 #define SEND_WIDTH 5
 #define SEND_HEIGHT 6
-#define SEND_FILTER 7
-#define SEND_BRIGHT 8
-#define SEND_IMAGE 9
+#define SEND_BLOCK_WIDTH 7
+#define SEND_BLOCK_HEIGHT 8
+#define SEND_FILTER 9
+#define SEND_BRIGHT 10
+#define SEND_GAMMA 11
+#define SEND_IMAGE 12
 
-#define CLOSE_SOCKET 10
+#define APPLY_FILTER 13
+
+#define CLOSE_SOCKET 14
 
 
 using namespace std;
@@ -33,28 +39,16 @@ private:
 
     // address --> struct with int attributes for configure later the parameters of socket
     struct sockaddr_in serverAdress;
-
-    // image and filterImage --> place where the image is saved
-    Mat image;
-    Mat filterImage;
+    int imgSize, blockWidth, blockHeight;
+    ImageHandler* image;
 
 public:
-    // imgSize --> size of bits of the image
-    // imgWidth --> width in pixels of the image
-    // imgHeight --> height in pixels of the image
-    int imgSize, imgWidth, imgHeight;
-    int filter, brightness;
+    int filter, brightness, gamma;
 
     Client(string imgPath){
         newSocket = 0;
-        image = imread(imgPath, 1);
-        if (!image.data){
-            cout << "No image data" << endl;
-            exit(0);
-        }
-        imgSize = image.total()*image.elemSize();
-        imgWidth = image.cols;
-        imgHeight = image.rows;
+        image = new ImageHandler(imgPath);
+        image->separateImage();
     }
 
     // Function that try to connect a new socket with a server in a specific port and ip
@@ -105,6 +99,15 @@ public:
             brightness = bright_int;
         }
 
+        if (filter == GAMMA) {
+            cout << ">>> In a scale of 0 to 3 define the gamma value you want to apply to your image <<<" << endl;
+            string gamma_message;
+            int gamma_int;
+            getline(cin, gamma_message);
+            gamma_int = stoi(gamma_message);
+            brightness = gamma_int;
+        }
+
         filterProtocol(filter);
         return 0;
     }
@@ -114,19 +117,43 @@ public:
             sendNumber(SEND_BRIGHT);
             sendNumber(brightness);
         }
+        if (filter_num == GAMMA){
+            sendNumber(SEND_GAMMA);
+            sendNumber(gamma);
+        }
+
+        sendNumber(SEND_WIDTH);
+        sendNumber(image->image.cols);
+
+        sendNumber(SEND_HEIGHT);
+        sendNumber(image->image.rows);
 
         sendNumber(SEND_FILTER);
         sendNumber(filter);
 
-        sendNumber(SEND_WIDTH);
-        sendNumber(imgWidth);
+        for (int i = 0; i < image->blocks.size(); ++i) {
+            blockWidth = image->blocks[i].cols;
+            blockHeight = image->blocks[i].rows;
 
-        sendNumber(SEND_HEIGHT);
-        sendNumber(imgHeight);
+            sendNumber(SEND_BLOCK_WIDTH);
+            sendNumber(blockWidth);
 
-        sendNumber(SEND_IMAGE);
-        sendImage();
+            sendNumber(SEND_BLOCK_HEIGHT);
+            sendNumber(blockHeight);
 
+            sendNumber(SEND_IMAGE);
+            sendImage(image->blocks[i]);
+        }
+
+        sendNumber(APPLY_FILTER);
+
+        for (int i = 0; i < image->blocks.size(); ++i) {
+            blockWidth = image->blocks[i].cols;
+            blockHeight = image->blocks[i].rows;
+            hearImage();
+        }
+        image->remakeImage();
+        image->showImage("Image received by Client (Image with Filter)",image->filterImage);
         return 0;
     }
 
@@ -144,9 +171,10 @@ public:
     }
 
     // Function that send image through the socket
-    int sendImage(){
+    int sendImage(Mat Image){
         int bytes = 0;
-        bytes = send(newSocket, image.data, imgSize, 0); // send the image through the socket to client
+        imgSize = Image.total()*Image.elemSize();
+        bytes = send(newSocket, Image.data, imgSize, 0); // send the image through the socket to client
         if (bytes < 0){ // Error code
             cout << "Error writing to socket" << endl;
             closeSocket();
@@ -157,8 +185,9 @@ public:
     // Function that hear the image from server and save it
     int hearImage(){
         int bytes;
-        filterImage = Mat::zeros(imgHeight, imgWidth, CV_8UC3); // initialize the mat instance with the size of image
+        Mat filterBlock = Mat::zeros(blockHeight, blockWidth, CV_8UC3); // initialize the mat instance with the size of image
 
+        imgSize = filterBlock.total()*filterBlock.elemSize(); // get the bit size of image
         uchar sockData[imgSize]; // Buffer where the pixels of the image are saved
 
         for (int i = 0; i < imgSize; i+=bytes) {
@@ -168,49 +197,40 @@ public:
             }
         }
         int ptr = 0;
-        cout << imgHeight << endl << imgWidth << endl;
-        for (int i = 0; i < imgHeight; ++i) { // Get the color information in the buffer and apply it to Mat instance
-            for (int j = 0; j < imgWidth; ++j) {
+        for (int i = 0; i < blockHeight; ++i) { // Get the color information in the buffer and apply it to Mat instance
+            for (int j = 0; j < blockWidth; ++j) {
                 if (filter == GRAYSCALE) {
-                    filterImage.at<cv::Vec3b>(i,j) = cv::Vec3b(sockData[ptr],sockData[ptr],sockData[ptr]);
+                    filterBlock.at<cv::Vec3b>(i,j) = cv::Vec3b(sockData[ptr],sockData[ptr],sockData[ptr]);
                     ptr += 1;
                 } else{
-                    filterImage.at<cv::Vec3b>(i, j) = cv::Vec3b(sockData[ptr + 0], sockData[ptr + 1],sockData[ptr + 2]);
+                    filterBlock.at<cv::Vec3b>(i, j) = cv::Vec3b(sockData[ptr + 0], sockData[ptr + 1],sockData[ptr + 2]);
                     ptr += 3;
                 }
             }
         }
 
-        // Show the image in screen
-        namedWindow("Image received by Client (Image with Filter)", WINDOW_AUTOSIZE);
-        imshow("Image received by Client (Image with Filter)", filterImage);
-        waitKey(0);
-
+        image->filterBlocks.push_back(filterBlock);
         return 0;
     }
 
-    // Function that close the socket cnnection with the server
+    // Function that close the socket connection with the server
     int closeSocket(){
         sendNumber(CLOSE_SOCKET);
         close(clientSocket);
-        cout << "The client socket was successfully closed" << endl;
+        cout << ">>> The client socket was successfully closed <<<" << endl;
         return 0;
     }
 };
 
 // The main function create a new instance of server and initialize it
 int main(){
-
-    Client client("imagen3.jpg");
-
+    string imgPath;
+    cout << ">>> Type the path of the image you want to edit <<<" << endl;
+    getline(cin, imgPath);
+    Client client(imgPath);
     client.conectServer();
-
     client.chooseFilter();
-
-    client.hearImage();
-
     client.closeSocket();
-
     return 0;
 }
 

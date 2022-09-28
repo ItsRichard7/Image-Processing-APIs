@@ -14,16 +14,15 @@ int Processing_APIS::gaussian_blur(Mat* img, Mat* img2) {
     return 0;
 }
 
-int Processing_APIS::gamma_correction(Mat* img, Mat* img2) {
+int Processing_APIS::gamma_correction(Mat* img, Mat* img2, int Gamma){
     double c, r_min,r_max;
-    float gamma= 2.5;
+    float gamma = (float) Gamma;
     minMaxLoc(*img, &r_min,&r_max);
     c= 255/pow(r_max,gamma);
     img->convertTo(*img,CV_32F);
     pow(*img, gamma, *img2);
     *img2= c*(*img2);
     img2->convertTo(*img2,CV_8UC1);
-
     return 0;
 }
 

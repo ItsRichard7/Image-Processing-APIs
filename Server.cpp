@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <opencv2/opencv.hpp>
 #include "Processing_APIS.h"
+#include "ImagePagination.cpp"
 
 #define PORT 8080
 
@@ -15,11 +16,16 @@
 
 #define RECEIVE_WIDTH 5
 #define RECEIVE_HEIGHT 6
-#define RECEIVE_FILTER 7
-#define RECEIVE_BRIGHT 8
-#define RECEIVE_IMAGE 9
+#define RECEIVE_BLOCK_WIDTH 7
+#define RECEIVE_BLOCK_HEIGHT 8
+#define RECEIVE_FILTER 9
+#define RECEIVE_BRIGHT 10
+#define RECEIVE_GAMMA 11
+#define RECEIVE_IMAGE 12
 
-#define CLOSE_SOCKET 10
+#define APPLY_FILTER 13
+
+#define CLOSE_SOCKET 14
 
 using namespace std;
 using namespace cv;
@@ -41,23 +47,19 @@ private:
     int opt, addressLen;
 
     // image and filterImage --> Both save the client image. The original and the filter one
-    Mat image;
-    Mat* image_ptr;
-    Mat filterImage;
-    Mat* filterImage_ptr;
-
-
+    ImageHandler* image;
 
     // imgSize --> size of bits of the image
     // imgWidth --> width in pixels of the image
     // imgHeight --> height in pixels of the image
     // data --> number control variable
-    int imgFilter, imgSize, imgWidth, imgHeight, imgBright;
+    int imgFilter, imgSize, imgWidth, imgHeight, imgBright, imgGamma;
 
 public:
     Server(){
         opt = 1;
         addressLen = sizeof(address); // get bytes len of address and assign
+        image = new ImageHandler();
     }
 
     // Function that try to create a new server socket and configurate it
@@ -124,12 +126,13 @@ public:
             int value = hearNum();
             if (value == RECEIVE_FILTER) setFilter();
             if (value == RECEIVE_BRIGHT) setBright();
+            if (value == RECEIVE_GAMMA) setGamma();
             if (value == RECEIVE_WIDTH) setWidth();
             if (value == RECEIVE_HEIGHT) setHeight();
-            if (value == RECEIVE_IMAGE){
-                hearImage();
-                applyFilter();
-            }
+            if (value == RECEIVE_BLOCK_WIDTH) setBlockWidth();
+            if (value == RECEIVE_BLOCK_HEIGHT) setBlockHeight();
+            if (value == RECEIVE_IMAGE) hearImage();
+            if (value == APPLY_FILTER) applyFilter();
             if (value == CLOSE_SOCKET) connection = false;
         }
         return 0;
@@ -138,28 +141,51 @@ public:
     int setFilter(){
         int value = hearNum();
         imgFilter = value;
+        return 0;
     }
 
     int setBright(){
         int value = hearNum();
         imgBright = value;
+        return 0;
+    }
+
+    int setGamma(){
+        int value = hearNum();
+        imgGamma = value;
+        return 0;
     }
 
     int setWidth(){
         int value = hearNum();
-        imgWidth = value;
+        image->imgWidth = value;
+        return 0;
     }
 
     int setHeight(){
         int value = hearNum();
+        image->imgHeight = value;
+        image->setParameters();
+        return 0;
+    }
+
+    int setBlockWidth(){
+        int value = hearNum();
+        imgWidth = value;
+        return 0;
+    }
+
+    int setBlockHeight(){
+        int value = hearNum();
         imgHeight = value;
+        return 0;
     }
 
     // Function that hear the image from client and save it
     int hearImage(){
         int bytes;
-        image = Mat::zeros(imgHeight, imgWidth, CV_8UC3); // initialize the mat instance with the size of image
-        imgSize = image.total()*image.elemSize(); // get the bit size of image
+        Mat block = Mat::zeros(imgHeight, imgWidth, CV_8UC3); // initialize the mat instance with the size of image
+        imgSize = block.total()*block.elemSize(); // get the bit size of image
         uchar sockData[imgSize]; // Buffer where the pixels of the image are saved
 
         for (int i = 0; i < imgSize; i+=bytes) {
@@ -171,40 +197,49 @@ public:
 
         int ptr = 0;
 
-        for (int i = 0; i < image.rows; ++i) { // Get the color information in the buffer and apply it to Mat instance
-            for (int j = 0; j < image.cols; ++j) {
-                image.at<cv::Vec3b>(i,j) = cv::Vec3b(sockData[ptr + 0], sockData[ptr + 1], sockData[ptr + 2]);
+        for (int i = 0; i < block.rows; ++i) { // Get the color information in the buffer and apply it to Mat instance
+            for (int j = 0; j < block.cols; ++j) {
+                block.at<cv::Vec3b>(i,j) = cv::Vec3b(sockData[ptr + 0], sockData[ptr + 1], sockData[ptr + 2]);
                 ptr += 3;
             }
         }
-
-        // Show the image in screen
-        namedWindow("Image received by Server (Original Image)", WINDOW_AUTOSIZE);
-        imshow("Image received by Server (Original Image)", image);
-        waitKey(0);
-
+        image->filterBlocks.push_back(block);
         return 0;
     }
 
     int applyFilter(){
-        filterImage = image;
-        image_ptr= &image;
-        filterImage_ptr= &filterImage;
-        if (imgFilter == GAMMA) Processing_APIS::gamma_correction(image_ptr, filterImage_ptr);
+        cout << "llegue aqui" << endl;
+        cout << image->filterBlocks.size() << endl;
+        image->remakeImage();
+        image->showImage("Image received by Server (Original Image)", image->filterImage);
 
-        if (imgFilter == GAUSSIAN) Processing_APIS::gaussian_blur(image_ptr, filterImage_ptr);
+        Mat *imagePtr = &(image->filterImage);
+        Mat *filterImagePtr = &(image->image);
 
-        if (imgFilter == GRAYSCALE) Processing_APIS::gray_scale(image_ptr,filterImage_ptr);
+        if (imgFilter == GAMMA) Processing_APIS::gamma_correction(imagePtr, filterImagePtr, imgGamma);
 
-        if (imgFilter == BRIGHTNESS) Processing_APIS::bright_control(image_ptr,filterImage_ptr, imgBright);
+        if (imgFilter == GAUSSIAN) Processing_APIS::gaussian_blur(imagePtr, filterImagePtr);
 
-        sendImage();
+        if (imgFilter == GRAYSCALE) Processing_APIS::gray_scale(imagePtr,filterImagePtr);
+
+        if (imgFilter == BRIGHTNESS) Processing_APIS::bright_control(imagePtr,filterImagePtr, imgBright);
+
+        image->showImage("Image with filter (in server)", image->image);
+
+        image->separateImage();
+
+        for (int i = 0; i < image->blocks.size(); ++i) {
+            sendImage(image->blocks[i]);
+        }
+
+        return 0;
     }
 
     // Function that send image through the socket
-    int sendImage(){
+    int sendImage(Mat Image){
         int bytes = 0;
-        bytes = send(newSocket, filterImage.data, imgSize, 0); // send the image through the socket to client
+        imgSize = Image.total()*Image.elemSize();
+        bytes = send(newSocket, Image.data, imgSize, 0); // send the image through the socket to client
         if (bytes < 0){ // Error code
             cout << "Error writing to socket" << endl;
             closeSocket();
@@ -216,7 +251,7 @@ public:
     int closeSocket(){
         // Closing the connected socket
         close(newSocket);
-        cout << "The client socket was successfully closed" << endl;
+        cout << ">>> The client socket was successfully closed <<<" << endl;
         return 0;
     }
 
@@ -224,7 +259,7 @@ public:
     int closeServer(){
         // Closing the listening socket
         shutdown(serverSocket, SHUT_RDWR);
-        cout << "The server was successfully turned off" << endl;
+        cout << ">>> The server was successfully turned off <<<" << endl;
         return 0;
     }
 };
