@@ -50,6 +50,7 @@ public:
         image = imread(imgPath, 1);
         if (!image.data){
             cout << "No image data" << endl;
+            exit(0);
         }
         imgSize = image.total()*image.elemSize();
         imgWidth = image.cols;
