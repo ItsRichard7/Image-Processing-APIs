@@ -189,7 +189,7 @@ public:
     int applyFilter(){
         filterImage = image;
         image_ptr= &image;
-        filterImage_ptr= &image;
+        filterImage_ptr= &filterImage;
         if (imgFilter == GAMMA) Processing_APIS::gamma_correction(image_ptr, filterImage_ptr);
 
         if (imgFilter == GAUSSIAN) Processing_APIS::gaussian_blur(image_ptr, filterImage_ptr);
