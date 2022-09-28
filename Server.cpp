@@ -24,6 +24,7 @@
 using namespace std;
 using namespace cv;
 
+
 class Server{
 
 private:
@@ -41,7 +42,11 @@ private:
 
     // image and filterImage --> Both save the client image. The original and the filter one
     Mat image;
+    Mat* image_ptr;
     Mat filterImage;
+    Mat* filterImage_ptr;
+
+
 
     // imgSize --> size of bits of the image
     // imgWidth --> width in pixels of the image
@@ -182,14 +187,16 @@ public:
     }
 
     int applyFilter(){
+        filterImage = image;
+        image_ptr= &image;
+        filterImage_ptr= &image;
+        if (imgFilter == GAMMA) Processing_APIS::gamma_correction(image_ptr, filterImage_ptr);
 
-        if (imgFilter == GAMMA) filterImage = Processing_APIS::gamma_correction(image);
+        if (imgFilter == GAUSSIAN) Processing_APIS::gaussian_blur(image_ptr, filterImage_ptr);
 
-        if (imgFilter == GAUSSIAN) filterImage = Processing_APIS::gaussian_blur(image);
+        if (imgFilter == GRAYSCALE) Processing_APIS::gray_scale(image_ptr,filterImage_ptr);
 
-        if (imgFilter == GRAYSCALE) filterImage = Processing_APIS::gray_scale(image);
-
-        if (imgFilter == BRIGHTNESS) filterImage = Processing_APIS::bright_control(image, imgBright);
+        if (imgFilter == BRIGHTNESS) Processing_APIS::bright_control(image_ptr,filterImage_ptr, imgBright);
 
         sendImage();
     }
