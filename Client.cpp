@@ -105,7 +105,7 @@ public:
             int gamma_int;
             getline(cin, gamma_message);
             gamma_int = stoi(gamma_message);
-            brightness = gamma_int;
+            gamma = gamma_int;
         }
 
         filterProtocol(filter);
@@ -243,4 +243,3 @@ int main(){
     client.closeSocket();
     return 0;
 }
-

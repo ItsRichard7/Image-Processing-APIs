@@ -240,7 +240,6 @@ public:
 
         return 0;
     }
-
     // Function that send image through the socket
     int sendImage(Mat Image){
         int bytes = 0;
