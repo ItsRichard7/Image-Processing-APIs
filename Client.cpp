@@ -147,16 +147,22 @@ public:
 
         sendNumber(APPLY_FILTER);
 
-        for (int i = 0; i < image->blocks.size(); ++i) {
-            blockWidth = image->blocks[i].cols;
-            blockHeight = image->blocks[i].rows;
-            hearImage();
-        }
+        hearBlocks();
+
         image->remakeImage();
         image->showImage("Image received by Client (Image with Filter)",image->filterImage);
         return 0;
     }
 
+    int hearBlocks(){
+        for (int i = 0; i < image->blocks.size(); ++i) {
+            blockWidth = image->blocks[i].cols;
+            blockHeight = image->blocks[i].rows;
+            hearImage();
+        }
+        cout << ">>> All filter blocks of the image successfully received <<<" << endl;
+        return 0;
+    }
 
     // Send int values
     int sendNumber(int value){
@@ -188,6 +194,8 @@ public:
         Mat filterBlock = Mat::zeros(blockHeight, blockWidth, CV_8UC3); // initialize the mat instance with the size of image
 
         imgSize = filterBlock.total()*filterBlock.elemSize(); // get the bit size of image
+        if (filter == GRAYSCALE) imgSize /= 3;
+
         uchar sockData[imgSize]; // Buffer where the pixels of the image are saved
 
         for (int i = 0; i < imgSize; i+=bytes) {
@@ -196,6 +204,7 @@ public:
                 return -1;
             }
         }
+
         int ptr = 0;
         for (int i = 0; i < blockHeight; ++i) { // Get the color information in the buffer and apply it to Mat instance
             for (int j = 0; j < blockWidth; ++j) {
@@ -209,7 +218,8 @@ public:
             }
         }
 
-        image->filterBlocks.push_back(filterBlock);
+        image->filterBlocks.push_back(filterBlock.clone());
+
         return 0;
     }
 

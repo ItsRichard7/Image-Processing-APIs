@@ -1,10 +1,8 @@
 //
 // Created by cruz on 19/09/22.
 //
-#include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
 #include "Processing_APIS.h"
-#include <opencv2/imgcodecs.hpp>
 #include <opencv2/core.hpp>
 
 using namespace cv;

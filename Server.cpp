@@ -208,12 +208,14 @@ public:
     }
 
     int applyFilter(){
-        cout << "llegue aqui" << endl;
-        cout << image->filterBlocks.size() << endl;
+        cout << ">>> All blocks of the image successfully received <<<" << endl;
+
         image->remakeImage();
+
         image->showImage("Image received by Server (Original Image)", image->filterImage);
 
         Mat *imagePtr = &(image->filterImage);
+
         Mat *filterImagePtr = &(image->image);
 
         if (imgFilter == GAMMA) Processing_APIS::gamma_correction(imagePtr, filterImagePtr, imgGamma);
@@ -224,9 +226,13 @@ public:
 
         if (imgFilter == BRIGHTNESS) Processing_APIS::bright_control(imagePtr,filterImagePtr, imgBright);
 
+        cout << ">>> The filter was successfully applied to your image <<<" << endl;
+
         image->showImage("Image with filter (in server)", image->image);
 
         image->separateImage();
+
+        //image->showVector();
 
         for (int i = 0; i < image->blocks.size(); ++i) {
             sendImage(image->blocks[i]);
