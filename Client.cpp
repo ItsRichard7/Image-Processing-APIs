@@ -7,11 +7,13 @@
 
 #define PORT 8080
 
+// Enums for filters
 #define GAMMA 1
 #define GAUSSIAN 2
 #define BRIGHTNESS 3
 #define GRAYSCALE 4
 
+// Enums for instructions
 #define SEND_WIDTH 5
 #define SEND_HEIGHT 6
 #define SEND_BLOCK_WIDTH 7
@@ -20,9 +22,7 @@
 #define SEND_BRIGHT 10
 #define SEND_GAMMA 11
 #define SEND_IMAGE 12
-
 #define APPLY_FILTER 13
-
 #define CLOSE_SOCKET 14
 
 
@@ -32,23 +32,27 @@ using namespace cv;
 class Client{
 
 private:
-    // connection --> boolean that indicates if the client and server are actually texting
     // newSocket --> save the configuration of the socket
     // clientSocket --> communication channel with server
     int newSocket, clientSocket;
 
-    // address --> struct with int attributes for configure later the parameters of socket
+    // serverAddress --> struct with int attributes for configure later the parameters of socket
     struct sockaddr_in serverAdress;
+
+    // Basic parameters of the image and blocks
     int imgSize, blockWidth, blockHeight;
+
+    // Instance of the class that manipulate the image
     ImageHandler* image;
 
 public:
+    // Variables that save the data given by the user
     int filter, brightness, gamma;
 
-    Client(string imgPath){
+    Client(string imgPath){ //constructor method
         newSocket = 0;
         image = new ImageHandler(imgPath);
-        image->separateImage();
+        image->separateImage(); // start the pagination of the image
     }
 
     // Function that try to connect a new socket with a server in a specific port and ip
@@ -78,18 +82,18 @@ public:
         return 0;
     }
 
+    // Function that gets the filter information
     int chooseFilter(){
+        // Get the filter and save it
         string message;
         int answer;
-
         cout << ">>> Type the number of the filter do tou want to apply to your image <<<" << endl;
         cout << "1) Gamma Filter  2) Gaussian Filter  3) Brightness Control  4) Gray Scale" << endl;
-
         getline(cin, message);
         answer = stoi(message);
-
         filter = answer;
 
+        // If the filter its equal to bright control we need to ask the level of bright
         if (filter == BRIGHTNESS){
             cout << ">>> In a scale of 0 to 300 (150 its the same bright) how much brightness do you want to apply to your image <<<" << endl;
             string bright_message;
@@ -99,6 +103,7 @@ public:
             brightness = bright_int;
         }
 
+        // If the filter its equal to gamma correction we need to ask the level gamma
         if (filter == GAMMA) {
             cout << ">>> In a scale of 0 to 3 define the gamma value you want to apply to your image <<<" << endl;
             string gamma_message;
@@ -108,29 +113,32 @@ public:
             gamma = gamma_int;
         }
 
-        filterProtocol(filter);
+        filterProtocol(filter); //Start the comunication with server
         return 0;
     }
 
+    // Function with the instructions for right communication with server
     int filterProtocol(int filter_num){
-        if (filter_num == BRIGHTNESS){
+        if (filter_num == BRIGHTNESS){ // If the filter its bright control send the bright value
             sendNumber(SEND_BRIGHT);
             sendNumber(brightness);
         }
-        if (filter_num == GAMMA){
+        if (filter_num == GAMMA){ // If the filter its gamma correction send the gamma value
             sendNumber(SEND_GAMMA);
             sendNumber(gamma);
         }
 
+        // Send the size of the image
         sendNumber(SEND_WIDTH);
         sendNumber(image->image.cols);
-
         sendNumber(SEND_HEIGHT);
         sendNumber(image->image.rows);
 
+        // Send the filter
         sendNumber(SEND_FILTER);
         sendNumber(filter);
 
+        // Send all the blocks
         for (int i = 0; i < image->blocks.size(); ++i) {
             blockWidth = image->blocks[i].cols;
             blockHeight = image->blocks[i].rows;
@@ -144,16 +152,19 @@ public:
             sendNumber(SEND_IMAGE);
             sendImage(image->blocks[i]);
         }
-
+        // Say to server that begin to apply the filter
         sendNumber(APPLY_FILTER);
 
+        // Listen all the blocks from server and save them
         hearBlocks();
 
+        // Build the image and show it
         image->remakeImage();
         image->showImage("Image received by Client (Image with Filter)",image->filterImage);
         return 0;
     }
 
+    // Function that receive all the filters blocks from server
     int hearBlocks(){
         for (int i = 0; i < image->blocks.size(); ++i) {
             blockWidth = image->blocks[i].cols;
@@ -164,7 +175,7 @@ public:
         return 0;
     }
 
-    // Send int values
+    // Send int values through sockets
     int sendNumber(int value){
         int num = value;
         int* numPtr = &num;
@@ -223,6 +234,16 @@ public:
         return 0;
     }
 
+    // Function that save the image in the local computer
+    int saveImage(string path) {
+        if (filter == GAMMA) path = "gamma_" + path;
+        if (filter == GAUSSIAN) path = "gaussian_" + path;
+        if (filter == BRIGHTNESS) path = "bright_" + path;
+        if (filter == GRAYSCALE) path = "grayscale_" + path;
+        imwrite(path, image->filterImage);
+        cout << ">>> The image was successfully saved on your computer <<<" << endl;
+    }
+
     // Function that close the socket connection with the server
     int closeSocket(){
         sendNumber(CLOSE_SOCKET);
@@ -234,12 +255,16 @@ public:
 
 // The main function create a new instance of server and initialize it
 int main(){
+    // get the path of the image
     string imgPath;
     cout << ">>> Type the path of the image you want to edit <<<" << endl;
     getline(cin, imgPath);
+
+    // Initialize one instance of client and start functionality
     Client client(imgPath);
     client.conectServer();
     client.chooseFilter();
+    client.saveImage(imgPath);
     client.closeSocket();
     return 0;
 }

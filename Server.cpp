@@ -9,11 +9,13 @@
 
 #define PORT 8080
 
+// Enums for filters
 #define GAMMA 1
 #define GAUSSIAN 2
 #define BRIGHTNESS 3
 #define GRAYSCALE 4
 
+// Enums for instructions
 #define RECEIVE_WIDTH 5
 #define RECEIVE_HEIGHT 6
 #define RECEIVE_BLOCK_WIDTH 7
@@ -22,9 +24,7 @@
 #define RECEIVE_BRIGHT 10
 #define RECEIVE_GAMMA 11
 #define RECEIVE_IMAGE 12
-
 #define APPLY_FILTER 13
-
 #define CLOSE_SOCKET 14
 
 using namespace std;
@@ -111,6 +111,7 @@ public:
         return 0;
     }
 
+    // Hear a int from sockets
     int hearNum(){
         int value;
         int n = recv(newSocket, &value, sizeof(value), 0);
@@ -121,6 +122,8 @@ public:
         return value;
     }
 
+
+    // Hub of instruction (what server do if received a specific enum?)
     int hearMessages(){
         while (connection){
             int value = hearNum();
@@ -138,43 +141,38 @@ public:
         return 0;
     }
 
+    // All the next functions get int value from socket and save it where it corresponds
     int setFilter(){
         int value = hearNum();
         imgFilter = value;
         return 0;
     }
-
     int setBright(){
         int value = hearNum();
         imgBright = value;
         return 0;
     }
-
     int setGamma(){
         int value = hearNum();
         imgGamma = value;
         return 0;
     }
-
     int setWidth(){
         int value = hearNum();
         image->imgWidth = value;
         return 0;
     }
-
     int setHeight(){
         int value = hearNum();
         image->imgHeight = value;
         image->setParameters();
         return 0;
     }
-
     int setBlockWidth(){
         int value = hearNum();
         imgWidth = value;
         return 0;
     }
-
     int setBlockHeight(){
         int value = hearNum();
         imgHeight = value;
@@ -207,39 +205,35 @@ public:
         return 0;
     }
 
+    // When all the blocks was received start to apply the filter
     int applyFilter(){
         cout << ">>> All blocks of the image successfully received <<<" << endl;
 
-        image->remakeImage();
+        image->remakeImage(); // build the image
+        image->showImage("Image received by Server (Original Image)", image->filterImage); // show the remake image
 
-        image->showImage("Image received by Server (Original Image)", image->filterImage);
-
-        Mat *imagePtr = &(image->filterImage);
-
+        Mat *imagePtr = &(image->filterImage); // create pointers to use the API's
         Mat *filterImagePtr = &(image->image);
 
+        // Apply the respective filter
         if (imgFilter == GAMMA) Processing_APIS::gamma_correction(imagePtr, filterImagePtr, imgGamma);
-
         if (imgFilter == GAUSSIAN) Processing_APIS::gaussian_blur(imagePtr, filterImagePtr);
-
         if (imgFilter == GRAYSCALE) Processing_APIS::gray_scale(imagePtr,filterImagePtr);
-
         if (imgFilter == BRIGHTNESS) Processing_APIS::bright_control(imagePtr,filterImagePtr, imgBright);
-
         cout << ">>> The filter was successfully applied to your image <<<" << endl;
 
-        image->showImage("Image with filter (in server)", image->image);
+        image->showImage("Image with filter (in server)", image->image); // Show the filter image
+        image->separateImage(); // Create blocks of filter image
 
-        image->separateImage();
+        //image->showVector(); // show all the blocks
 
-        //image->showVector();
-
+        // send all the blocks to client
         for (int i = 0; i < image->blocks.size(); ++i) {
             sendImage(image->blocks[i]);
         }
-
         return 0;
     }
+
     // Function that send image through the socket
     int sendImage(Mat Image){
         int bytes = 0;
@@ -271,16 +265,10 @@ public:
 
 // The main function create a new instance of server and initialize it
 int main(){
-
     Server server;
-
     server.createServer();
-
     server.hearMessages();
-
     server.closeSocket();
-
     server.closeServer();
-
     return 0;
 }

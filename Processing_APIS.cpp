@@ -4,7 +4,6 @@
 #include <opencv2/imgproc.hpp>
 #include "Processing_APIS.h"
 #include <opencv2/core.hpp>
-#include <iostream>
 
 using namespace cv;
 using namespace std;
@@ -16,7 +15,7 @@ int Processing_APIS::gaussian_blur(Mat* img, Mat* img2) {
 int Processing_APIS::gamma_correction(Mat* img, Mat* img2, int Gamma){
     double c, r_min,r_max;
     float gamma = float(Gamma);
-    minMaxLoc(img3, &r_min,&r_max);
+    minMaxLoc(*img, &r_min,&r_max);
     c= 255/pow(r_max,gamma);
     img->convertTo(*img,CV_32F);
     pow(*img, gamma, *img2);
