@@ -94,7 +94,8 @@ public:
         filter = answer;
 
         // If the filter its equal to bright control we need to ask the level of bright
-        if (filter == BRIGHTNESS){
+        if (filter == BRIGHTNESS)
+        {
             cout << ">>> In a scale of 1 to 300 (150 its the same bright) how much brightness do you want to apply to your image <<<" << endl;
             string bright_message;
             int bright_int;
