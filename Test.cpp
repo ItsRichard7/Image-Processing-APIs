@@ -76,6 +76,8 @@ int main(){
     Mat* gammaPtr = &gamma;
 
     Processing_APIS::gaussian_blur(imgPtr, gaussianPtr);
+    imshow("With gaussian wilter", gaussian);
+    waitKey(0);
     estado = testing.gaussianTest(gaussian, img_gaussian);
     cout << "" << endl;
     cout << "Filtro GaussianBlur: " << endl;
@@ -84,6 +86,8 @@ int main(){
 
 
     Processing_APIS::bright_control(imgPtr,brightPtr,200);
+    imshow("With bright control wilter", bright);
+    waitKey(0);
     estado = testing.brightTest(bright,img_bright);
     cout << "" << endl;
     cout << "Filtro control de Brillo: " << endl;
@@ -92,6 +96,8 @@ int main(){
 
 
     Processing_APIS::gamma_correction(imgPtr,gammaPtr,2);
+    imshow("With gamma correction filter", gamma);
+    waitKey(0);
     estado = testing.gammaTest(gamma,img_gamma);
     cout<<""<<endl;
     cout<<"Filtro correcion Gamma: "<<endl;
@@ -99,6 +105,8 @@ int main(){
     else cout<<"Fallo en el proceso"<<endl;
 
     Processing_APIS::gray_scale(imgPtr, grayPtr);
+    imshow("With gray scale filter", gray);
+    waitKey(0);
     estado = testing.grayTest(gray, img_gray);
     cout << "" << endl;
     cout << "Filtro escala de grises: " << endl;
