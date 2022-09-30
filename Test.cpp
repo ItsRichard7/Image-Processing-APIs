@@ -94,16 +94,6 @@ int main(){
     if (estado == 0) cout << "Exito total!" << endl;
     else cout << "Fallo en el proceso" << endl;
 
-
-    Processing_APIS::gamma_correction(imgPtr,gammaPtr,2);
-    imshow("With gamma correction filter", gamma);
-    waitKey(0);
-    estado = testing.gammaTest(gamma,img_gamma);
-    cout<<""<<endl;
-    cout<<"Filtro correcion Gamma: "<<endl;
-    if (estado == 0) cout << "Exito total!" << endl;
-    else cout<<"Fallo en el proceso"<<endl;
-
     Processing_APIS::gray_scale(imgPtr, grayPtr);
     imshow("With gray scale filter", gray);
     waitKey(0);
@@ -112,6 +102,15 @@ int main(){
     cout << "Filtro escala de grises: " << endl;
     if (estado == 0) cout << "Exito total!" << endl;
     else cout << "Fallo en el proceso" << endl;
+    
+    Processing_APIS::gamma_correction(imgPtr,gammaPtr,2);
+    imshow("With gamma correction filter", gamma);
+    waitKey(0);
+    estado = testing.gammaTest(gamma,img_gamma);
+    cout<<""<<endl;
+    cout<<"Filtro correcion Gamma: "<<endl;
+    if (estado == 0) cout << "Exito total!" << endl;
+    else cout<<"Fallo en el proceso"<<endl;
 }
 
 
