@@ -22,7 +22,7 @@ public:
     // number of blocks of any row and colum
     int horizontalBlocks,verticalBlocks;
 
-    // Dinamic data structure that contends all the blocks
+    // Dynamic data structure that contends all the blocks
     vector<Mat> blocks,filterBlocks;
 
     // Constructor for server side (the server do not have the image when the program starts)
