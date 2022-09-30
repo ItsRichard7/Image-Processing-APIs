@@ -15,6 +15,7 @@ int Processing_APIS::gaussian_blur(Mat* img, Mat* img2) {
 int Processing_APIS::gamma_correction(Mat* img, Mat* img2, int Gamma){
     double c, r_min,r_max;
     float gamma = float(Gamma);
+    if (gamma == 1) gamma = 0.5;
     minMaxLoc(*img, &r_min,&r_max);
     c= 255/pow(r_max,gamma);
     img->convertTo(*img,CV_32F);

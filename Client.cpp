@@ -95,7 +95,7 @@ public:
 
         // If the filter its equal to bright control we need to ask the level of bright
         if (filter == BRIGHTNESS){
-            cout << ">>> In a scale of 0 to 300 (150 its the same bright) how much brightness do you want to apply to your image <<<" << endl;
+            cout << ">>> In a scale of 1 to 300 (150 its the same bright) how much brightness do you want to apply to your image <<<" << endl;
             string bright_message;
             int bright_int;
             getline(cin, bright_message);
@@ -105,7 +105,7 @@ public:
 
         // If the filter its equal to gamma correction we need to ask the level gamma
         if (filter == GAMMA) {
-            cout << ">>> In a scale of 0 to 3 define the gamma value you want to apply to your image <<<" << endl;
+            cout << ">>> In a scale of 1 to 3 define the gamma value you want to apply to your image <<<" << endl;
             string gamma_message;
             int gamma_int;
             getline(cin, gamma_message);
